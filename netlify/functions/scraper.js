@@ -9,8 +9,15 @@ exports.handler = async (event, context) => {
   
     // Send a GET request to the URL
     const response = await axios.get(url);
-    return response;
+    // Parse the HTML content using Cheerio
+    const $ = cheerio.load(response.data);
 
+    // Replace with the CSS selector of the element you want to scrape
+    const element = $('.pre');
+    console.log(element);
+
+    return element;
+    
     // Save the data to a file
     fs.writeFileSync('data.txt', element.text());
 
