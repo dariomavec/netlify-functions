@@ -1,15 +1,34 @@
-// Jokes provided from the lovely folks at https://icanhazdadjoke.com
-import jokes from './jokes.json';
+const axios = require('axios');
+const cheerio = require('cheerio');
+const fs = require('fs');
 
-export const handler = async (event) => {
-    // Generates a random index based on the length of the jokes array
-    const randomIndex = Math.floor(Math.random() * jokes.length)
-    const randomJoke = jokes[randomIndex]
-    
-    // Netlify Functions need to return an object with a statusCode
-    // Other properties such as headers or body can also be included.
+exports.handler = async (event, context) => {
+  try {
+    // Replace with the URL of the website you want to scrape
+    const url = 'https://www.floatingsauna.com.au/';
+  
+    // Send a GET request to the URL
+    const response = await axios.get(url);
+
+    // Parse the HTML content using Cheerio
+    const $ = cheerio.load(response.data);
+    console.log($)
+
+    // Replace with the CSS selector of the element you want to scrape
+    const element = $('.h4');
+
+    // Save the data to a file
+    fs.writeFileSync('data.txt', element.text());
+
     return {
-        statusCode: 200,
-        body: JSON.stringify(randomJoke)
-    }
-}
+      statusCode: 200,
+      body: 'Data saved successfully'
+    };
+  } catch (error) {
+    console.error(error);
+    return {
+      statusCode: 500,
+      body: 'Error occurred'
+    };
+  }
+};
