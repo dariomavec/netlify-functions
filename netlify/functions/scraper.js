@@ -1,16 +1,37 @@
 const axios = require('axios');
 const { google } = require('googleapis');
+const { schedule } = require("@netlify/functions");
 
 // Replace with the path to the JSON key file
 const GOOG_API = process.env.GOOG_API;
 
+function date_string(offset = 0) {
+  let dte = new Date();
+  dte.setDate(dte.getDate() + offset);
+  let dd = dte.getDate();
+  let mm = dte.getMonth() + 1;
+  let yy = dte.getFullYear();
+
+  return(yy + '-' + mm.toString().padStart(2, '0') + '-' + dd.toString().padStart(2, '0'))
+}
+
 async function scrapeData() {
     // Replace with the URL of the website you want to scrape
-    const url = 'https://lakederbyfloatingsauna.as.me/api/scheduling/v1/availability/times?owner=45aadd5c&appointmentTypeId=14920908&calendarId=4082433&startDate=2023-05-15&timezone=Australia%2FHobart';
-  
+    let today = date_string(offset = 0);
+    let query = date_string(offset = 2);
+    const url = 'https://lakederbyfloatingsauna.as.me/api/scheduling/v1/availability/times?' + 
+                'owner=45aadd5c&appointmentTypeId=14920908&calendarId=4082433&startDate=' +
+                query + '&timezone=Australia%2FHobart';
+    console.log(url);
+
     // Send a GET request to the URL
     const response = await axios.get(url);
-    return([123, JSON.stringify(response.data)]);
+
+    let slots_available = 0;
+    response.data[query].forEach(
+      val => slots_available += val['slotsAvailable']
+    );
+    return([[today, query, slots_available]]);
 };
 
 
@@ -27,15 +48,13 @@ async function writeToSheet(data) {
       version: 'v4',
       auth: auth.fromJSON(JSON.parse(GOOG_API))
     });
-    
-    //google.auth.fromAPIKey(GOOG_API);
 
     // Get the ID of the sheet
     const sheetUrl = 'https://docs.google.com/spreadsheets/d/1GjQyOleFrp8vaKjUEbED6SBzEvbKR0u4BxSyF5Uzy0s/edit#gid=0';
     const sheetId = sheetUrl.match(/\/d\/(.+)\//)[1];
 
     // Replace with the range where you want to write the data
-    const range = 'Data!A1:B2';
+    const range = 'Data!A1:C1';
 
     // Build the request body
     const request = {
@@ -49,13 +68,12 @@ async function writeToSheet(data) {
 
     // Write the data to the sheet
     const response = await sheets.spreadsheets.values.append(request);
-    //console.log(response.data);
   } catch (error) {
     console.error(error);
   }
 }
 
-exports.handler = async (event, context) => {
+const handler = async (event, context) => {
   try {
     // Replace with the scraped data you want to write to the sheet
     const data = await scrapeData();
@@ -63,15 +81,9 @@ exports.handler = async (event, context) => {
 
     // Write the data to the sheet
     writeToSheet(data);
-    return {
-      statusCode: 200,
-      body: 'Data saved successfully'
-    };
   } catch (error) {
     console.error(error);
-    return {
-      statusCode: 500,
-      body: 'Error occurred'
-    };
   }
 };
+
+exports.handler = schedule("0 12 * * *", handler);
